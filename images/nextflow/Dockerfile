@@ -24,7 +24,6 @@ LABEL maintainer="BomanNg boman.ngs@gmail.com" \
       version="24.10.8" \
       description="A secure, minimal, and production-ready Docker image for Nextflow."
 
-# --- STEP 1: Perform all setup as ROOT ---
 RUN apk add --no-cache bash
 
 ARG USER_ID=1000
@@ -38,10 +37,8 @@ RUN chmod 755 /usr/local/bin/nextflow
 RUN mkdir -p /home/nextflow/.nextflow && \
     chown -R nextflow:nextflow /home/nextflow
 
-# --- STEP 2: Drop privileges. This is now the final privileged operation. ---
 USER nextflow
 
-# --- STEP 3: Define runtime environment as the non-root user ---
 VOLUME /home/nextflow/.nextflow
 
 WORKDIR /workspace
