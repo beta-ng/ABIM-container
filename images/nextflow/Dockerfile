@@ -16,7 +16,7 @@ RUN export NXF_VER=${NEXTFLOW_VERSION} && \
     chmod +x nextflow
 
 # ==============================================================================
-# Stage 2: Final Runtime Stage
+# Stage 2: Runtime Stage
 # ==============================================================================
 FROM eclipse-temurin:${JDK_VERSION}-jre-alpine
 
