@@ -12,7 +12,7 @@ jobs:
   # 第一个 Job：识别需要构建的服务
   # 这个 Job会扫描 scripts 目录，找出所有包含 Dockerfile 的子目录名，并将其作为输出
   prepare:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     outputs:
       # 输出一个名为 services 的 JSON 数组，例如 ["service-a", "service-b"]
       services: ${{ steps.list_services.outputs.services }}
@@ -33,7 +33,7 @@ jobs:
     needs: prepare
     # 如果没有找到任何服务，则不运行此 Job
     if: fromJson(needs.prepare.outputs.services)[0] != null
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     # 使用矩阵策略，为 prepare Job 输出的每个服务名创建一个并行的构建任务
     strategy:
