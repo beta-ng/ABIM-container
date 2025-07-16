@@ -6,7 +6,7 @@ on:
       - main # 建议指定具体分支，例如 main
     paths:
       - "scripts/**/Dockerfile" # 仅当 scripts 目录下的任何 Dockerfile 发生变化时触发
-    workflow_dispatch:
+  workflow_dispatch:
 
 jobs:
   # 第一个 Job：识别需要构建的服务
