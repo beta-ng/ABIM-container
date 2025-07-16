@@ -26,7 +26,6 @@ LABEL maintainer="BomanNg boman.ngs@gmail.com" \
       version="0.12.1" \
       description="A secure, minimal, and production-ready Docker image for FastQC."
 
-# --- STEP 1: Perform all setup as ROOT ---
 RUN apk add --no-cache openjdk11-jre-headless tini bash perl
 
 ARG USER_ID=1001
