@@ -7,29 +7,37 @@ on:
     branches:
       - main
     paths:
-      - "images/**"
+      - "images/**/Dockerfile"
 
 jobs:
-  build-and-push:
+  discover-changes:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        image: ["placeholder"]
-
+    outputs:
+      changed_dirs: ${{ steps.changed-files.outputs.dirs }}
     steps:
       - name: "Checkout Code"
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: "Get changed Dockerfiles"
+      - name: "Get changed Docker image directories"
         id: changed-files
         run: |
-          # Compare the current HEAD with the previous commit
-          # For pushes to main, this is equivalent to `git diff --name-only HEAD^ HEAD`
-          CHANGED_DIRS=$(git diff --name-only ${{ github.event.before }} ${{ github.event.after }} | grep 'images/.*/Dockerfile$' | xargs -n1 dirname | sort -u | jq -R -s -c 'split("\n") | map(select(length > 0))')
-          echo "changed_dirs=${CHANGED_DIRS}" >> $GITHUB_OUTPUT
+          DIRS=$(git diff --name-only ${{ github.event.before }} ${{ github.event.after }} | grep 'images/.*/Dockerfile$' | xargs -n1 dirname | sort -u | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "dirs=${DIRS}" >> $GITHUB_OUTPUT
+
+  build-and-push:
+    needs: discover-changes
+    if: fromJson(needs.discover-changes.outputs.changed_dirs)[0] != null
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image_dir: ${{ fromJson(needs.discover-changes.outputs.changed_dirs) }}
+
+    steps:
+      - name: "Checkout Code"
+        uses: actions/checkout@v4
 
       - name: "Set up QEMU"
         uses: docker/setup-qemu-action@v3
@@ -43,25 +51,23 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: "Build and push changed images"
+      - name: "Build and push image for ${{ matrix.image_dir }}"
         run: |
-          images='${{ steps.changed-files.outputs.changed_dirs }}'
-          for dir in $(echo "$images" | jq -r '.[]'); do
-            image_name=$(basename "$dir")
-            context_path="$dir"
-            
-            docker_hub_repo="${{ secrets.DOCKERHUB_USERNAME }}/${image_name}"
-            
-            tag=$(git rev-parse --short HEAD)
-            
-            echo "Building and pushing image: ${docker_hub_repo}:${tag}"
-            echo "Context path: ${context_path}"
-            
-            docker buildx build \
-              --push \
-              --tag "${docker_hub_repo}:${tag}" \
-              --tag "${docker_hub_repo}:latest" \
-              --cache-from type=gha \
-              --cache-to type=gha,mode=max \
-              "${context_path}"
-          done
+          CONTEXT_PATH="${{ matrix.image_dir }}"
+          IMAGE_NAME=$(basename "$CONTEXT_PATH")
+          DOCKER_HUB_REPO="${{ secrets.DOCKERHUB_USERNAME }}/${IMAGE_NAME}"
+
+          TAG=$(git rev-parse --short HEAD)
+
+          echo "=================================================="
+          echo "Building and pushing image: ${DOCKER_HUB_REPO}:${TAG}"
+          echo "Context path: ${CONTEXT_PATH}"
+          echo "=================================================="
+
+          docker buildx build \
+            --push \
+            --tag "${DOCKER_HUB_REPO}:${TAG}" \
+            --tag "${DOCKER_HUB_REPO}:latest" \
+            --cache-from type=gha \
+            --cache-to type=gha,mode=max \
+            "${CONTEXT_PATH}"
