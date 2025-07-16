@@ -3,18 +3,15 @@ name: Build and Push on Dockerfile Change
 on:
   push:
     branches:
-      - main # 建议指定具体分支，例如 main
+      - main
     paths:
-      - "images/**/Dockerfile" # 仅当 scripts 目录下的任何 Dockerfile 发生变化时触发
+      - "images/**/Dockerfile"
   workflow_dispatch:
 
 jobs:
-  # 第一个 Job：识别需要构建的服务
-  # 这个 Job会扫描 scripts 目录，找出所有包含 Dockerfile 的子目录名，并将其作为输出
   prepare:
     runs-on: ubuntu-22.04
     outputs:
-      # 输出一个名为 services 的 JSON 数组，例如 ["service-a", "service-b"]
       services: ${{ steps.list_services.outputs.services }}
     steps:
       - name: Checkout repository
@@ -22,20 +19,15 @@ jobs:
 
       - name: List services with Dockerfiles
         id: list_services
-        # 在 scripts 目录下查找所有一级的子目录，并将其转换成 JSON 数组格式
         run: |
           SERVICES=$(find images -mindepth 2 -maxdepth 2 -type f -name Dockerfile -printf '%h\n' | cut -d'/' -f2 | jq -Rsc 'split("\n") | map(select(length > 0))')
           echo "services=$SERVICES" >> $GITHUB_OUTPUT
 
-  # 第二个 Job：根据识别出的服务列表，并行构建和推送镜像
   build-and-push:
-    # 依赖 prepare Job，确保在它成功完成后才开始运行
     needs: prepare
-    # 如果没有找到任何服务，则不运行此 Job
     if: fromJson(needs.prepare.outputs.services)[0] != null
     runs-on: ubuntu-22.04
 
-    # 使用矩阵策略，为 prepare Job 输出的每个服务名创建一个并行的构建任务
     strategy:
       matrix:
         service: ${{ fromJson(needs.prepare.outputs.services) }}
@@ -47,7 +39,7 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ vars.DOCKERHUB_USERNAME }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Set up QEMU
@@ -59,9 +51,6 @@ jobs:
       - name: Build and push Docker image for ${{ matrix.service }}
         uses: docker/build-push-action@v6
         with:
-          # context 指定了 Docker build 的上下文路径
           context: ./images/${{ matrix.service }}
-          # push 设置为 true 以推送到 Docker Hub
           push: true
-          # tags 是动态生成的，格式为 "用户名/服务名:latest"
-          tags: ${{ vars.DOCKERHUB_USERNAME }}/${{ matrix.service }}:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.service }}:latest
