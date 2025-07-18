@@ -15,10 +15,13 @@ WORKDIR /app
 RUN curl -s https://get.nextflow.io | bash && \
     chmod +x nextflow
 
-RUN useradd -m -s /bin/bash builduser
+RUN useradd -m -s /bin/bash builduser && \
+    chown builduser:builduser /app/nextflow
+
 USER builduser
 WORKDIR /home/builduser
 
+# Now, this command will execute successfully
 RUN /app/nextflow plugin install nf-amazon && \
     /app/nextflow plugin install nf-k8s
 
