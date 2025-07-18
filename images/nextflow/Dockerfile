@@ -1,13 +1,8 @@
 ARG JDK_VERSION=17
-ARG NEXTFLOW_VERSION=25.04.6
 
-# ==============================================================================
-# Stage 1: Build Stage
-# ==============================================================================
 FROM eclipse-temurin:${JDK_VERSION}-jdk-focal AS builder
 
-SHELL ["/bin/bash", "-c"]
-
+ARG NEXTFLOW_VERSION=25.04.6
 ENV NXF_VER=${NEXTFLOW_VERSION}
 ENV CAPSULE_LOG=none
 
@@ -15,22 +10,8 @@ WORKDIR /app
 RUN curl -s https://get.nextflow.io | bash && \
     chmod +x nextflow
 
-RUN useradd -m -s /bin/bash builduser && \
-    chown builduser:builduser /app/nextflow
-
-USER builduser
-WORKDIR /home/builduser
-
-# Now, this command will execute successfully
-RUN /app/nextflow plugin install nf-amazon && \
-    /app/nextflow plugin install nf-k8s
-
-# ==============================================================================
-# Stage 2: Runtime Stage
-# ==============================================================================
 FROM eclipse-temurin:${JDK_VERSION}-jre-alpine
-
-LABEL maintainer="BomanNg boman.ngs@gmail.com"
+LABEL maintainer="Your Name <your.email@example.com>"
 
 RUN apk add --no-cache bash && \
     rm -rf /var/cache/apk/*
@@ -42,19 +23,12 @@ RUN addgroup -g ${GROUP_ID} nextflow && \
 
 COPY --from=builder /app/nextflow /usr/local/bin/nextflow
 
-RUN mkdir -p /home/nextflow/.nextflow && \
-    chown -R nextflow:nextflow /home/nextflow
-
-COPY --from=builder --chown=nextflow:nextflow /home/builduser/.nextflow /home/nextflow/.nextflow
-
 USER nextflow
 
-VOLUME ["/home/nextflow/.nextflow", "/tmp"]
+ENV NXF_HOME=/home/nextflow/.nextflow
 
 WORKDIR /workspace
 
-ENV NXF_HOME=/home/nextflow/.nextflow \
-    NXF_TEMP=/tmp
-
 ENTRYPOINT ["nextflow"]
+
 CMD ["info"]
