@@ -21,7 +21,7 @@ ARG GROUP_ID=1000
 RUN addgroup -g ${GROUP_ID} nextflow && \
     adduser -u ${USER_ID} -G nextflow -s /bin/bash -D nextflow
 
-COPY --from=builder /app/nextflow /usr/local/bin/nextflow
+COPY --from=builder --chmod=755 /app/nextflow /usr/local/bin/nextflow
 
 USER nextflow
 
