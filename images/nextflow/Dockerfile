@@ -27,7 +27,7 @@ USER nextflow
 
 ENV NXF_HOME=/home/nextflow/.nextflow
 
-WORKDIR /workspace
+WORKDIR /work
 
 ENTRYPOINT ["nextflow"]
 
