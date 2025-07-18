@@ -28,7 +28,7 @@ RUN /app/nextflow plugin install nf-amazon && \
 FROM eclipse-temurin:${JDK_VERSION}-jre-alpine
 
 LABEL maintainer="BomanNg boman.ngs@gmail.com" \
-      version="${NEXTFLOW_VERSION}" \
+      version=${NEXTFLOW_VERSION} \
 
 RUN apk add --no-cache bash && \
     rm -rf /var/cache/apk/*
