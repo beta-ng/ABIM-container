@@ -53,7 +53,3 @@ USER gffread
 
 # Set working directory
 WORKDIR /data
-
-# Default entrypoint and command
-ENTRYPOINT ["gffread"]
-CMD ["--help"]
