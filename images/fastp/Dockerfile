@@ -1,35 +1,45 @@
 # WhaleSlim Optimized Dockerfile
 # Summary of key improvements:
-# 1. Uses a multi-stage build to create a minimal final image.
-# 2. The final image is built from 'scratch' for ultimate size reduction and security.
-# 3. Pins the application version for reproducible builds.
-# 4. Sets a clear ENTRYPOINT to make the container behave like the executable.
+# 1. Uses a multi-stage build to download the pre-built binary, avoiding compilation entirely.
+# 2. Final image is now based on 'busybox' to provide a minimal shell environment for debugging and interaction.
+# 3. The final image remains extremely small and secure.
+# 4. Uses an ARG to easily specify the desired fastp version.
+# 5. Correctly updates APT sources for Ubuntu 24.04 (Noble) to use Alibaba Cloud mirrors.
 
-# --- Build Stage ---
-# This stage uses a full OS (alpine) to download the tool.
-# It will be discarded after the build is complete.
-FROM alpine:3.20 AS builder
+# --- Downloader Stage ---
+# WhaleSlim Recommendation: Use a minimal base image with necessary tools (like wget) to download the binary.
+FROM ubuntu:24.04 AS downloader
 
-# WhaleSlim Recommendation: Use a pinned base image version (e.g., alpine:3.20)
-# instead of 'latest' to ensure build reproducibility.
-LABEL stage=builder
+# WhaleSlim Recommendation: Use ARG to make the fastp version easily configurable at build time.
+ARG FASTP_VERSION=0.23.4
 
-# WhaleSlim Recommendation: Consolidate RUN commands to reduce layers.
-# Here we download, rename, and set permissions in a single step.
-RUN wget http://opengene.org/fastp/fastp.0.23.4 \
-    && mv fastp.0.23.4 /tmp/fastp \
-    && chmod a+x /tmp/fastp
+# WhaleSlim Recommendation: Switch APT sources to an Alibaba Cloud mirror, compatible with the new DEB822 format in Ubuntu 24.04+.
+RUN sed -i \
+    -e 's|http://archive.ubuntu.com/ubuntu/|http://mirrors.aliyun.com/ubuntu/|g' \
+    -e 's|http://security.ubuntu.com/ubuntu/|http://mirrors.aliyun.com/ubuntu/|g' \
+    /etc/apt/sources.list.d/ubuntu.sources
+
+# WhaleSlim Recommendation: Install only wget, which is the sole dependency for this stage.
+# Clean up apt cache in the same layer.
+RUN apt-get update && apt-get install -y wget && rm -rf /var/lib/apt/lists/*
+
+# WhaleSlim Recommendation: Download the specified version of the pre-built binary and make it executable.
+# The URL format is based on the user's provided link.
+RUN wget http://opengene.org/fastp/fastp.${FASTP_VERSION} -O /fastp && \
+    chmod a+x /fastp
 
 # --- Final Stage ---
-# This is the final, production-ready image.
-# It starts from a completely empty base image ('scratch').
-FROM scratch
+# WhaleSlim Recommendation: Use 'busybox' for a minimal image that includes a shell and basic utilities.
+FROM busybox:stable-glibc
 
-# WhaleSlim Recommendation: Copy only the required artifact (the binary) from
-# the builder stage. This is the core of the multi-stage build pattern.
-COPY --from=builder /tmp/fastp /fastp
+# WhaleSlim Recommendation: Copy only the downloaded binary from the downloader stage.
+COPY --from=downloader /fastp /usr/local/bin/fastp
 
-# WhaleSlim Recommendation: Use ENTRYPOINT for tool-based containers. This makes
-# the container executable, behaving just like the tool itself.
-# For example: docker run <image_name> --version
-ENTRYPOINT ["/fastp"]
+# WhaleSlim Recommendation: Create a non-root user for security (Least Privilege Principle).
+# BusyBox has a /etc/passwd file, so we can add a user.
+RUN adduser -D -u 1001 nonroot
+USER nonroot
+
+# WhaleSlim Recommendation: Set the entrypoint for the container.
+ENTRYPOINT ["/usr/local/bin/fastp"]
+CMD ["--help"]
