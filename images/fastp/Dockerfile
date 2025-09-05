@@ -1,10 +1,10 @@
 # WhaleSlim Optimized Dockerfile
 # Summary of key improvements:
-# 1. Uses a multi-stage build to download the pre-built binary, avoiding compilation entirely.
-# 2. Final image is now based on 'busybox' to provide a minimal shell environment for debugging and interaction.
-# 3. The final image remains extremely small and secure.
-# 4. Uses an ARG to easily specify the desired fastp version.
-# 5. Correctly updates APT sources for Ubuntu 24.04 (Noble) to use Alibaba Cloud mirrors.
+# 1. Uses a multi-stage build to download the pre-built binary.
+# 2. Final image is based on 'alpine' to provide a minimal environment with a package manager.
+# 3. Explicitly installs 'bash' in the final stage to meet user requirements.
+# 4. The final image remains very small, secure, and now includes bash.
+# 5. Uses an ARG to easily specify the desired fastp version.
 
 # --- Downloader Stage ---
 # WhaleSlim Recommendation: Use a minimal base image with necessary tools (like wget) to download the binary.
@@ -29,14 +29,18 @@ RUN wget http://opengene.org/fastp/fastp.${FASTP_VERSION} -O /fastp && \
     chmod a+x /fastp
 
 # --- Final Stage ---
-# WhaleSlim Recommendation: Use 'busybox' for a minimal image that includes a shell and basic utilities.
-FROM busybox:stable-glibc
+# WhaleSlim Recommendation: Use 'alpine' for a minimal image that includes a robust package manager.
+# We use an Alibaba mirror for apk for faster package installation.
+FROM alpine:latest
+
+# WhaleSlim Recommendation: Install bash. --no-cache cleans up the cache in the same layer.
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
+    apk --no-cache add bash
 
 # WhaleSlim Recommendation: Copy only the downloaded binary from the downloader stage.
 COPY --from=downloader /fastp /usr/local/bin/fastp
 
 # WhaleSlim Recommendation: Create a non-root user for security (Least Privilege Principle).
-# BusyBox has a /etc/passwd file, so we can add a user.
 RUN adduser -D -u 1001 nonroot
 USER nonroot
 
