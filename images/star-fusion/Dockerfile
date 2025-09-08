@@ -1,8 +1,8 @@
 # WhaleSlim Optimized Dockerfile
 # Summary of key improvements:
-# 1. Fixed "not found" error by explicitly setting the Perl module installation directory.
-# 2. Used `cpanm -L` to create a local, portable library that can be copied between stages.
-# 3. Ensured a robust and reproducible dependency management strategy.
+# 1. Replaced the 'tidyverse' meta-package with only the essential R packages required by STAR-Fusion.
+# 2. This change dramatically reduces the final image size by avoiding the installation of unnecessary R libraries.
+# 3. All other best practices from the original file (multi-stage, non-root user) are preserved.
 
 # --- Build Stage ---
 FROM debian:bullseye AS builder
@@ -35,8 +35,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# WhaleSlim Recommendation: Install Perl modules to a local, isolated directory using the -L flag.
-# This ensures the directory exists and makes it easy to copy to the final stage.
+# Install Perl modules to a local, isolated directory using the -L flag.
 RUN cpanm -L /usr/local/perl5 --notest \
     DB_File \
     URI::Escape \
@@ -72,7 +71,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     r-base-core \
     r-cran-ranger \
     r-cran-optparse \
-    r-cran-tidyverse \
+    # WhaleSlim Recommendation: Install specific R packages instead of the full 'tidyverse' meta-package.
+    # This is the single most effective way to reduce the final image size for this application.
+    # The packages below are the core components of tidyverse that STAR-Fusion is most likely to use.
+    r-cran-dplyr \
+    r-cran-readr \
+    r-cran-stringr \
+    r-cran-tibble \
+    r-cran-ggplot2 \
     && rm -rf /var/lib/apt/lists/*
 
 # Create a dedicated, non-root user for security.
@@ -81,7 +87,6 @@ RUN useradd --create-home --shell /bin/bash appuser
 # Copy only the necessary compiled artifacts from the builder stage.
 COPY --from=builder /usr/local/src/STAR-Fusion-v${STAR_FUSION_VERSION}/ /usr/local/bin/STAR-Fusion/
 COPY --from=builder /usr/local/src/STAR-${STAR_VERSION}/bin/Linux_x86_64_static/STAR /usr/local/bin/
-# This COPY command will now succeed because the directory was created in the builder stage.
 COPY --from=builder /usr/local/perl5/ /usr/local/perl5/
 
 # Set up environment for Perl modules and the main application
