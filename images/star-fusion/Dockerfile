@@ -67,6 +67,7 @@ ARG STAR_VERSION=2.7.8a
 # Install only the absolute essential runtime dependencies.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     perl \
+    python3 \
     samtools \
     r-base-core \
     r-cran-ranger \
