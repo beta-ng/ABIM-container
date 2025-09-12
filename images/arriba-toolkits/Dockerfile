@@ -7,8 +7,9 @@ apt-get install -y --no-install-recommends wget ca-certificates rna-star samtool
 apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # install arriba
-RUN wget -qO - 'https://github.com/suhrig/arriba/releases/download/v2.5.1/arriba_v2.5.1.tar.gz' | tar -xzf - --exclude='arriba*/.git'
-
+RUN wget -qO - 'https://github.com/suhrig/arriba/releases/download/v2.5.1/arriba_v2.5.1.tar.gz' | tar -xzf - --exclude='arriba*/.git' && \
+    rm -rf /arriba_v2.5.1/database/*
+    
 # make wrapper script for download_references.sh
 RUN echo '#!/bin/bash\n\
 cd /references\n\
