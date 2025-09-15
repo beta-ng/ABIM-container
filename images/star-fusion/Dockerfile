@@ -1,41 +1,44 @@
-# WhaleSlim Optimized Dockerfile
-# Summary of key improvements:
-# 1. Replaced the 'tidyverse' meta-package with only the essential R packages required by STAR-Fusion.
-# 2. This change dramatically reduces the final image size by avoiding the installation of unnecessary R libraries.
-# 3. All other best practices from the original file (multi-stage, non-root user) are preserved.
-
-# --- Build Stage ---
+# ==============================================================================
+# Stage 1: Builder
+# - Compiles STAR and STAR-Fusion from source.
+# - Installs all build-time dependencies, including build-essential, Perl modules,
+#   and R packages. The artifacts from this stage will be copied to the final image.
+# ==============================================================================
 FROM debian:bullseye AS builder
 
-# Arguments must be re-declared in each stage where they are used.
+LABEL author="Boman Ng <boman.ngs@gmail.com>"
+LABEL stage="builder"
+
+# Declare build arguments for versioning
 ARG STAR_FUSION_VERSION=1.15.1
 ARG STAR_VERSION=2.7.8a
 
-# Set environment variables for use in subsequent commands.
-ENV STAR_FUSION_VERSION=${STAR_FUSION_VERSION} \
-    STAR_VERSION=${STAR_VERSION}
+# Set environment variables from ARGs for use in RUN commands
+ENV STAR_FUSION_VERSION=${STAR_FUSION_VERSION}
+ENV STAR_VERSION=${STAR_VERSION}
 
+# Install all necessary build-time dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    wget \
-    tar \
-    gzip \
-    git \
-    perl \
+    ca-certificates \
     cpanminus \
-    zlib1g-dev \
-    libdb-dev \
-    r-base-core \
-    r-cran-ranger \
-    r-cran-optparse \
-    r-cran-tidyverse \
+    git \
+    gzip \
     libcurl4-openssl-dev \
+    libdb-dev \
     libssl-dev \
     libxml2-dev \
-    ca-certificates \
+    perl \
+    r-base-core \
+    r-cran-optparse \
+    r-cran-ranger \
+    r-cran-tidyverse \
+    tar \
+    wget \
+    zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Perl modules to a local, isolated directory using the -L flag.
+# Install required Perl modules into a local directory to be copied later
 RUN cpanm -L /usr/local/perl5 --notest \
     DB_File \
     URI::Escape \
@@ -44,27 +47,38 @@ RUN cpanm -L /usr/local/perl5 --notest \
     JSON::XS \
     PerlIO::gzip
 
-# Build STAR
+# Download and build STAR aligner
 WORKDIR /usr/local/src
-RUN wget https://github.com/alexdobin/STAR/archive/refs/tags/${STAR_VERSION}.tar.gz \
-    && tar -xzf ${STAR_VERSION}.tar.gz \
-    && cd STAR-${STAR_VERSION}/source \
-    && make STAR \
-    && rm -rf /usr/local/src/${STAR_VERSION}.tar.gz
+RUN wget https://github.com/alexdobin/STAR/archive/refs/tags/${STAR_VERSION}.tar.gz && \
+    tar -xzf ${STAR_VERSION}.tar.gz && \
+    cd STAR-${STAR_VERSION}/source && \
+    make STAR && \
+    rm -rf /usr/local/src/${STAR_VERSION}.tar.gz
 
-# Build STAR-Fusion
-RUN wget https://github.com/STAR-Fusion/STAR-Fusion/releases/download/STAR-Fusion-v${STAR_FUSION_VERSION}/STAR-Fusion-v${STAR_FUSION_VERSION}.FULL.tar.gz \
-    && tar -xzf STAR-Fusion-v${STAR_FUSION_VERSION}.FULL.tar.gz \
-    && cd STAR-Fusion-v${STAR_FUSION_VERSION} \
-    && make \
-    && rm -rf /usr/local/src/STAR-Fusion-v${STAR_FUSION_VERSION}.FULL.tar.gz
+# Download and build STAR-Fusion
+RUN wget https://github.com/STAR-Fusion/STAR-Fusion/releases/download/STAR-Fusion-v${STAR_FUSION_VERSION}/STAR-Fusion-v${STAR_FUSION_VERSION}.FULL.tar.gz && \
+    tar -xzf STAR-Fusion-v${STAR_FUSION_VERSION}.FULL.tar.gz && \
+    cd STAR-Fusion-v${STAR_FUSION_VERSION} && \
+    make && \
+    rm -rf /usr/local/src/STAR-Fusion-v${STAR_FUSION_VERSION}.FULL.tar.gz
 
-# --- Final Runtime Stage ---
+
+# ==============================================================================
+# Stage 2: Final Runtime Image
+# - Creates a slim final image containing only the compiled binaries and the
+#   essential runtime dependencies.
+# ==============================================================================
 FROM debian:bullseye-slim
+
+LABEL author="Boman Ng <boman.ngs@gmail.com>"
+
+# Re-declare ARGs for use in COPY commands
 ARG STAR_FUSION_VERSION=1.15.1
 ARG STAR_VERSION=2.7.8a
 
-# Install only the absolute essential runtime dependencies.
+# Install only essential runtime dependencies.
+# Note: Replaces the large 'tidyverse' meta-package with its essential components
+# to significantly reduce the final image size.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     perl \
     python3 \
@@ -72,9 +86,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     r-base-core \
     r-cran-ranger \
     r-cran-optparse \
-    # WhaleSlim Recommendation: Install specific R packages instead of the full 'tidyverse' meta-package.
-    # This is the single most effective way to reduce the final image size for this application.
-    # The packages below are the core components of tidyverse that STAR-Fusion is most likely to use.
     r-cran-dplyr \
     r-cran-readr \
     r-cran-stringr \
@@ -82,25 +93,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     r-cran-ggplot2 \
     && rm -rf /var/lib/apt/lists/*
 
-# Create a dedicated, non-root user for security.
+# Create a dedicated non-root user for security
 RUN useradd --create-home --shell /bin/bash appuser
 
-# Copy only the necessary compiled artifacts from the builder stage.
+# Copy compiled artifacts and dependencies from the builder stage
 COPY --from=builder /usr/local/src/STAR-Fusion-v${STAR_FUSION_VERSION}/ /usr/local/bin/STAR-Fusion/
 COPY --from=builder /usr/local/src/STAR-${STAR_VERSION}/bin/Linux_x86_64_static/STAR /usr/local/bin/
 COPY --from=builder /usr/local/perl5/ /usr/local/perl5/
 
-# Set up environment for Perl modules and the main application
+# Configure environment for the application and its Perl dependencies
 ENV PATH="/usr/local/bin/STAR-Fusion:${PATH}"
 ENV PERL5LIB="/usr/local/perl5/lib/perl5"
 
-# Define volumes for input/output and the required genome library.
+# Define data mount points and working directory
 VOLUME ["/data", "/genome_lib"]
 WORKDIR /data
 
-# Switch to the non-root user before setting the ENTRYPOINT.
+# Switch to the non-root user
 USER appuser
 
-# Set an ENTRYPOINT for the main executable.
+# Set the container's entrypoint to the main application
 ENTRYPOINT ["STAR-Fusion"]
 CMD ["--help"]
