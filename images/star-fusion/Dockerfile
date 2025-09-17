@@ -105,13 +105,5 @@ COPY --from=builder /usr/local/perl5/ /usr/local/perl5/
 ENV PATH="/usr/local/bin/STAR-Fusion:${PATH}"
 ENV PERL5LIB="/usr/local/perl5/lib/perl5"
 
-# Define data mount points and working directory
-VOLUME ["/data", "/genome_lib"]
-WORKDIR /data
-
 # Switch to the non-root user
 USER appuser
-
-# Set the container's entrypoint to the main application
-ENTRYPOINT ["STAR-Fusion"]
-CMD ["--help"]

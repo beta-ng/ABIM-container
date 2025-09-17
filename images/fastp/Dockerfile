@@ -42,7 +42,3 @@ COPY --from=downloader /fastp /usr/local/bin/fastp
 # Create a non-root user for security (Principle of Least Privilege)
 RUN adduser -D -u 1001 nonroot
 USER nonroot
-
-# Set the default command for the container
-ENTRYPOINT ["/usr/local/bin/fastp"]
-CMD ["--help"]
