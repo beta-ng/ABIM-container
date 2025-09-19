@@ -1,0 +1,26 @@
+FROM ubuntu:24.04 AS builder
+
+LABEL author="Boman Ng <boman.ngs@gmail.com>"
+
+WORKDIR /
+
+COPY arriba_v2.5.1.tar.gz .
+
+RUN tar -xzf arriba_v2.5.1.tar.gz --exclude='arriba*/.git' && \
+    rm -rf /arriba_v2.5.1/database/* && \
+    rm arriba_v2.5.1.tar.gz
+
+FROM debian:12-slim
+
+LABEL author="Boman Ng <boman.ngs@gmail.com>"
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        rna-star \
+        samtools && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /arriba_v2.5.1 /arriba_v2.5.1
+
+WORKDIR /arriba_v2.5.1
