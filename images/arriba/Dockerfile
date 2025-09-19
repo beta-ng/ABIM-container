@@ -58,15 +58,10 @@ Rscript /arriba*/draw_fusions.R \
     --cytobands=$(ls /references/cytobands_*.tsv)' > /usr/local/bin/draw_fusions.sh && \
     chmod a+x /usr/local/bin/draw_fusions.sh
 
-# --- User and Permission Setup ---
-
-# Create a dedicated non-root user for security
+# Create directories for mounting data and set permissions
 RUN useradd --create-home --shell /bin/bash appuser
 
-# Create directories for mounting data and change ownership to the appuser
-# This allows the non-root user to write outputs and download references.
 RUN mkdir -p /references /reads /output && \
     chown -R appuser:appuser /references /reads /output
 
-# Switch to the non-root user
 USER appuser
