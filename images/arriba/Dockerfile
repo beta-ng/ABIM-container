@@ -1,67 +1,77 @@
-# Base Image
-FROM ubuntu:noble
+# Use a Debian-based builder to match the final image, ensuring library compatibility.
+FROM debian:bullseye AS builder
 
+# Use ARGs for versions to make the Dockerfile more flexible and maintainable
+ARG STAR_VERSION=2.7.8a
+ARG ARRIBA_VERSION=2.5.1
+
+# Add metadata labels
+LABEL stage="builder"
+
+# Set a working directory
+WORKDIR /usr/local/src
+
+# Install build-time dependencies for both STAR and Arriba
+# Package names are compatible between Ubuntu and Debian for these dependencies.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        ca-certificates \
+        wget \
+        zlib1g-dev \
+        libcurl4-openssl-dev \
+        libdb-dev \
+        libssl-dev \
+        libxml2-dev && \
+    #
+    # --- Build STAR ---
+    #
+    wget https://github.com/alexdobin/STAR/archive/refs/tags/${STAR_VERSION}.tar.gz && \
+    tar -xzf ${STAR_VERSION}.tar.gz && \
+    cd STAR-${STAR_VERSION}/source && \
+    make STAR && \
+    cd ../.. && \
+    #
+    # --- Build Arriba ---
+    #
+    wget https://github.com/suhrig/arriba/archive/refs/tags/v${ARRIBA_VERSION}.tar.gz && \
+    tar -xzf v${ARRIBA_VERSION}.tar.gz && \
+    cd arriba-${ARRIBA_VERSION} && \
+    make && \
+    #
+    # --- Clean up build environment ---
+    #
+    apt-get purge -y --auto-remove build-essential wget && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /usr/local/src/*.tar.gz
+
+# --- Final Stage ---
+# Use the corresponding slim version for a minimal final image.
+FROM debian:bullseye-slim
+
+# Re-declare ARGs needed in this stage
+ARG STAR_VERSION=2.7.8a
+ARG ARRIBA_VERSION=2.5.1
+
+# Add metadata
 LABEL author="Boman Ng <boman.ngs@gmail.com>"
 
-# Install essential dependencies for Arriba and its downstream analysis
-RUN export DEBIAN_FRONTEND=noninteractive && \
-    apt-get update -y && \
+# Install only the necessary RUNTIME dependencies
+RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        wget \
-        ca-certificates \
-        rna-star \
         samtools \
-        r-base \
-        r-cran-circlize \
-        r-bioc-genomicalignments \
-        r-bioc-genomicranges \
-        libxml2 && \
+        libcurl4 \
+        libbz2-1.0 \
+        liblzma5 \
+        libgomp1 \
+        libstdc++6 && \
+    # Clean up
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Download and extract Arriba, then remove the database to be populated by the wrapper script
-RUN wget -qO - 'https://github.com/suhrig/arriba/releases/download/v2.5.1/arriba_v2.5.1.tar.gz' \
-        | tar -xzf - --exclude='arriba*/.git' && \
-    rm -rf /arriba_v2.5.1/database/*
+# Copy the compiled binaries and scripts from the builder stage
+COPY --from=builder /usr/local/src/STAR-${STAR_VERSION}/source/STAR /usr/local/bin/
+COPY --from=builder /usr/local/src/arriba-${ARRIBA_VERSION} /arriba_v${ARRIBA_VERSION}
 
-# Create a wrapper script to download reference files
-RUN echo '#!/bin/bash\n\
-cd /references\n\
-/arriba*/download_references.sh $1 && \\\n\
-ASSEMBLY=$(sed -e "s/viral+.*//" -e "s/+.*//" <<<"$1") && \\\n\
-cp /arriba*/database/*$ASSEMBLY* /references' > /usr/local/bin/download_references.sh && \
-    chmod a+x /usr/local/bin/download_references.sh
-
-# Create the main wrapper script to execute Arriba fusion detection
-RUN echo '#!/bin/bash\n\
-cd /output && \\\n\
-/arriba*/run_arriba.sh \
-    /references/STAR_index_* \
-    /references/*.gtf \
-    /references/*.fa \
-    /references/blacklist_*.tsv.gz \
-    /references/known_fusions_*.tsv.gz \
-    /references/protein_domains_*.gff3 \
-    ${THREADS-8} \
-    /read1.fastq.gz \
-    $(ls /read2.fastq.gz 2> /dev/null)' > /usr/local/bin/arriba.sh && \
-    chmod a+x /usr/local/bin/arriba.sh
-
-# Create a wrapper script to draw fusion visualizations
-RUN echo '#!/bin/bash\n\
-Rscript /arriba*/draw_fusions.R \
-    --annotation=$(ls /references/*.gtf) \
-    --fusions=/fusions.tsv \
-    --output=/output/fusions.pdf \
-    --proteinDomains=$(ls /references/protein_domains_*.gff3) \
-    --alignments=/Aligned.sortedByCoord.out.bam \
-    --cytobands=$(ls /references/cytobands_*.tsv)' > /usr/local/bin/draw_fusions.sh && \
-    chmod a+x /usr/local/bin/draw_fusions.sh
-
-# Create directories for mounting data and set permissions
-RUN useradd --create-home --shell /bin/bash appuser
-
-RUN mkdir -p /references /reads /output && \
-    chown -R appuser:appuser /references /reads /output
-
-USER appuser
+# Set a default working directory for user data
+WORKDIR /data
