@@ -1,5 +1,5 @@
 # Use a Debian-based builder to match the final image, ensuring library compatibility.
-FROM debian:12 AS builder
+FROM debian:bullseye AS builder
 
 # Use ARGs for versions to make the Dockerfile more flexible and maintainable
 ARG STAR_VERSION=2.7.8a
@@ -47,7 +47,7 @@ RUN apt-get update && \
 
 # --- Final Stage ---
 # Use the corresponding slim version for a minimal final image.
-FROM debian:12-slim
+FROM debian:bullseye-slim
 
 # Re-declare ARGs needed in this stage
 ARG STAR_VERSION=2.7.8a
