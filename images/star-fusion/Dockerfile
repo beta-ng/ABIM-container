@@ -83,18 +83,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     perl \
     python3 \
     samtools \
-    r-base-core \
-    r-cran-ranger \
-    r-cran-optparse \
-    r-cran-dplyr \
-    r-cran-readr \
-    r-cran-stringr \
-    r-cran-tibble \
-    r-cran-ggplot2 \
     && rm -rf /var/lib/apt/lists/*
-
-# Create a dedicated non-root user for security
-RUN useradd --create-home --shell /bin/bash appuser
 
 # Copy compiled artifacts and dependencies from the builder stage
 COPY --from=builder /usr/local/src/STAR-Fusion-v${STAR_FUSION_VERSION}/ /usr/local/bin/STAR-Fusion/
@@ -105,5 +94,5 @@ COPY --from=builder /usr/local/perl5/ /usr/local/perl5/
 ENV PATH="/usr/local/bin/STAR-Fusion:${PATH}"
 ENV PERL5LIB="/usr/local/perl5/lib/perl5"
 
-# Switch to the non-root user
-USER appuser
+# Set a default working directory for user data
+WORKDIR /data
