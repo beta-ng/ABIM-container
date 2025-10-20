@@ -33,13 +33,13 @@ RUN cd "samtools-${SAMTOOLS_VERSION}" \
 # Start from a clean, minimal alpine image.
 FROM alpine:3.20
 
-# 1. Install *only* runtime dependencies + bash
+# 1. Install *only* the required runtime shared libraries + bash
 RUN apk add --no-cache \
     bash \
-    ncurses-libs \
-    bzip2 \
-    xz-libs \
     zlib \
+    libbz2 \
+    xz-libs \
+    ncurses-libs \
     libcurl
 
 # 2. Copy the compiled binary from the builder stage
