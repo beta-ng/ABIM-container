@@ -1,66 +1,31 @@
-# GATK 4.6.2.0 Dockerfile - 多阶段构建优化版
-# 构建阶段
-FROM ubuntu:22.04 AS builder
+# ----- Stage 1: The Builder -----
+# Using an explicit docker.io image (Docker Hub) as requested.
+FROM docker.io/continuumio/miniconda3:24.11.1-0 AS builder
 
-# 设置环境变量
-ENV GATK_VERSION=4.6.2.0
-ENV DEBIAN_FRONTEND=noninteractive
+# 1. Define Arguments
+# Updated GATK_VERSION to 4.6.2.0 as requested.
+ARG GATK_VERSION="4.6.2.0"
+ARG CONDA_ENV_PATH="/opt/gatk-env"
 
-# 安装构建依赖（合并为单层）
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    wget \
-    ca-certificates \
-    openjdk-17-jdk \
-    git \
-    unzip \
-    && rm -rf /var/lib/apt/lists/*
+# 2. Build the Environment
+# Create a dedicated environment for GATK and clean caches in the same layer.
+RUN echo "Creating GATK4 ${GATK_VERSION} environment at ${CONDA_ENV_PATH}..." && \
+    conda create -p ${CONDA_ENV_PATH} -c bioconda -c conda-forge "gatk4=${GATK_VERSION}" -y && \
+    conda clean -afy
 
-# 设置工作目录
-WORKDIR /build
+# ----- Stage 2: The Final Production Image -----
+# Using an explicit docker.io image (Docker Hub) as requested.
+FROM docker.io/library/debian:bullseye-slim
 
-# 下载GATK源码
-RUN wget -q https://github.com/broadinstitute/gatk/archive/refs/tags/${GATK_VERSION}.tar.gz \
-    && tar -xzf ${GATK_VERSION}.tar.gz \
-    && rm ${GATK_VERSION}.tar.gz
+# 1. Define Environment Variables
+ARG CONDA_ENV_PATH="/opt/gatk-env"
+ENV PATH="${CONDA_ENV_PATH}/bin:${PATH}"
 
-# 构建GATK
-WORKDIR /build/gatk-${GATK_VERSION}
-RUN ./gradlew bundle \
-    && unzip build/gatk-${GATK_VERSION}.zip -d /opt/
+# 2. Copy Only the Essential Artifacts
+# Copy the built conda environment from the builder stage.
+COPY --from=builder ${CONDA_ENV_PATH} ${CONDA_ENV_PATH}
 
-# 运行阶段 - 最小化镜像
-FROM ubuntu:22.04 AS runtime
-
-# 设置环境变量
-ENV GATK_VERSION=4.6.2.0
-ENV GATK_HOME=/opt/gatk-${GATK_VERSION}
-ENV PATH="${GATK_HOME}:${PATH}"
-ENV DEBIAN_FRONTEND=noninteractive
-
-# 仅安装运行时依赖
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    openjdk-17-jre-headless \
-    python3 \
-    python3-pip \
-    r-base-core \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
-
-# 从构建阶段复制GATK
-COPY --from=builder /opt/gatk-${GATK_VERSION} ${GATK_HOME}
-
-# 创建数据目录
+# 3. Set Workdir
+# Per user request, the container will run as root.
+# Setting WORKDIR to /root (root's home directory).
 WORKDIR /data
-
-# 验证安装
-RUN gatk --list
-
-# 添加标签
-LABEL maintainer="GATK Docker" \
-      version="${GATK_VERSION}" \
-      description="GATK (Genome Analysis Toolkit) - Optimized Multi-stage Build"
-
-# 默认命令
-ENTRYPOINT ["gatk"]
-CMD ["--help"]
