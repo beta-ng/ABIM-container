@@ -1,15 +1,20 @@
-# Use the slim image, as it's the smallest official image with /bin/bash
+# ==============================================================================
+# Python Container with uv
+# ==============================================================================
 FROM python:3.12-slim
 
-# Per your requirement, we will run as the default 'root' user.
+# Define build arguments for versioning
+ARG PYTHON_VERSION=3.12
 
-# Set the 'uv' mirror URL to Tsinghua (as requested).
+# Add metadata
+LABEL author="Boman Ng <boman.ngs@gmail.com>"
+
+# Set the uv mirror URL to Tsinghua
 ENV UV_INDEX_URL="https://pypi.tuna.tsinghua.edu.cn/simple"
 
-# Install 'uv' and immediately clean the pip cache in the same layer.
-# This is the primary optimization for size reduction.
+# Install uv and clean the pip cache in the same layer
 RUN pip install uv \
     && rm -rf /root/.cache/pip
 
-# Set the working directory
-WORKDIR /app
+# Set working directory
+WORKDIR /data

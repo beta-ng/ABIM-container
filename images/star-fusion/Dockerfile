@@ -1,19 +1,17 @@
 # ==============================================================================
 # Stage 1: Builder
-# - Compiles STAR and STAR-Fusion from source.
-# - Installs all build-time dependencies, including build-essential, Perl modules,
-#   and R packages. The artifacts from this stage will be copied to the final image.
+# Compiles STAR and STAR-Fusion from source and installs dependencies.
 # ==============================================================================
 FROM debian:bullseye AS builder
 
-LABEL author="Boman Ng <boman.ngs@gmail.com>"
-LABEL stage="builder"
-
-# Declare build arguments for versioning
+# Define build arguments for versioning
 ARG STAR_FUSION_VERSION=1.15.1
 ARG STAR_VERSION=2.7.8a
 
-# Set environment variables from ARGs for use in RUN commands
+# Add metadata
+LABEL stage="builder"
+
+# Set environment variables
 ENV STAR_FUSION_VERSION=${STAR_FUSION_VERSION}
 ENV STAR_VERSION=${STAR_VERSION}
 
@@ -47,8 +45,10 @@ RUN cpanm -L /usr/local/perl5 --notest \
     JSON::XS \
     PerlIO::gzip
 
-# Download and build STAR aligner
+# Set working directory
 WORKDIR /usr/local/src
+
+# Download and build STAR aligner
 RUN wget https://github.com/alexdobin/STAR/archive/refs/tags/${STAR_VERSION}.tar.gz && \
     tar -xzf ${STAR_VERSION}.tar.gz && \
     cd STAR-${STAR_VERSION}/source && \
@@ -65,20 +65,19 @@ RUN wget https://github.com/STAR-Fusion/STAR-Fusion/releases/download/STAR-Fusio
 
 # ==============================================================================
 # Stage 2: Final Runtime Image
-# - Creates a slim final image containing only the compiled binaries and the
-#   essential runtime dependencies.
+# Creates a slim final image containing only the compiled binaries and
+# essential runtime dependencies.
 # ==============================================================================
 FROM debian:bullseye-slim
-
-LABEL author="Boman Ng <boman.ngs@gmail.com>"
 
 # Re-declare ARGs for use in COPY commands
 ARG STAR_FUSION_VERSION=1.15.1
 ARG STAR_VERSION=2.7.8a
 
-# Install only essential runtime dependencies.
-# Note: Replaces the large 'tidyverse' meta-package with its essential components
-# to significantly reduce the final image size.
+# Add metadata
+LABEL author="Boman Ng <boman.ngs@gmail.com>"
+
+# Install only essential runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     perl \
     python3 \
@@ -94,5 +93,5 @@ COPY --from=builder /usr/local/perl5/ /usr/local/perl5/
 ENV PATH="/usr/local/bin/STAR-Fusion:${PATH}"
 ENV PERL5LIB="/usr/local/perl5/lib/perl5"
 
-# Set a default working directory for user data
+# Set working directory
 WORKDIR /data

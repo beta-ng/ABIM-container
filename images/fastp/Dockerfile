@@ -4,11 +4,11 @@
 # ==============================================================================
 FROM ubuntu:24.04 AS downloader
 
-LABEL author="Boman Ng <boman.ngs@gmail.com>"
-LABEL stage="downloader"
-
-# Allow the fastp version to be specified at build time
+# Define build arguments for versioning
 ARG FASTP_VERSION=0.23.4
+
+# Add metadata
+LABEL stage="downloader"
 
 # Switch APT sources to a regional mirror for faster package installation
 RUN sed -i \
@@ -25,11 +25,15 @@ RUN apt-get update && \
 
 
 # ==============================================================================
-# Stage 2: Final Image
-# Creates a minimal, secure final image containing only the fastp binary and bash.
+# Stage 2: Final Runtime Image
+# Creates a minimal final image containing only the fastp binary and bash.
 # ==============================================================================
 FROM alpine:latest
 
+# Re-declare ARG for use in this stage
+ARG FASTP_VERSION=0.23.4
+
+# Add metadata
 LABEL author="Boman Ng <boman.ngs@gmail.com>"
 
 # Switch APK sources to a regional mirror and install bash
@@ -39,6 +43,5 @@ RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 # Copy the fastp binary from the downloader stage
 COPY --from=downloader /fastp /usr/local/bin/fastp
 
-# Create a non-root user for security (Principle of Least Privilege)
-RUN adduser -D -u 1001 nonroot
-USER nonroot
+# Set working directory
+WORKDIR /data

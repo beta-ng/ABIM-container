@@ -1,34 +1,45 @@
+# ==============================================================================
+# Stage 1: Builder
+# Download and prepare Nextflow
+# ==============================================================================
+FROM eclipse-temurin:17-jdk-focal AS builder
+
+# Define build arguments for versioning
 ARG JDK_VERSION=17
-
-FROM eclipse-temurin:${JDK_VERSION}-jdk-focal AS builder
-
 ARG NEXTFLOW_VERSION=25.04.6
+
+# Set environment variables
 ENV NXF_VER=${NEXTFLOW_VERSION}
 ENV CAPSULE_LOG=none
 
+# Set working directory
 WORKDIR /app
+
+# Download Nextflow
 RUN curl -s https://get.nextflow.io | bash && \
     chmod +x nextflow
 
-FROM eclipse-temurin:${JDK_VERSION}-jre-alpine
-LABEL maintainer="Your Name <your.email@example.com>"
+# ==============================================================================
+# Stage 2: Final Runtime Image
+# ==============================================================================
+FROM eclipse-temurin:17-jre-alpine
 
+# Re-declare ARG for use in this stage
+ARG JDK_VERSION=17
+ARG NEXTFLOW_VERSION=25.04.6
+
+# Add metadata
+LABEL author="Boman Ng <boman.ngs@gmail.com>"
+
+# Install runtime dependencies
 RUN apk add --no-cache bash && \
     rm -rf /var/cache/apk/*
 
-ARG USER_ID=1000
-ARG GROUP_ID=1000
-RUN addgroup -g ${GROUP_ID} nextflow && \
-    adduser -u ${USER_ID} -G nextflow -s /bin/bash -D nextflow
-
+# Copy Nextflow from builder stage
 COPY --from=builder --chmod=755 /app/nextflow /usr/local/bin/nextflow
 
-USER nextflow
+# Set environment variables
+ENV NXF_HOME=/root/.nextflow
 
-ENV NXF_HOME=/home/nextflow/.nextflow
-
-WORKDIR /work
-
-ENTRYPOINT ["nextflow"]
-
-CMD ["info"]
+# Set working directory
+WORKDIR /data

@@ -1,11 +1,13 @@
-# ==== Build Stage ====
-# Use a pinned alpine version for a reproducible build environment.
+# ==============================================================================
+# Stage 1: Builder
+# Build Samtools from source
+# ==============================================================================
 FROM alpine:3.20 AS builder
 
-# 1. Set ARG for version control.
+# Define build arguments for versioning
 ARG SAMTOOLS_VERSION="1.22.1"
 
-# 2. Install build dependencies
+# Install build dependencies
 RUN apk add --no-cache \
     build-base \
     curl \
@@ -15,25 +17,34 @@ RUN apk add --no-cache \
     zlib-dev \
     curl-dev
 
-# 3. Download, extract, and clean up in a single layer
+# Set working directory
 WORKDIR /build
+
+# Download and extract Samtools source code
 RUN curl -L -o samtools.tar.bz2 \
     "https://github.com/samtools/samtools/releases/download/${SAMTOOLS_VERSION}/samtools-${SAMTOOLS_VERSION}.tar.bz2" \
     && tar -jxvf samtools.tar.bz2 \
     && rm samtools.tar.bz2
 
-# 4. Build and install samtools
+# Build and install Samtools
 RUN cd "samtools-${SAMTOOLS_VERSION}" \
     && ./configure --prefix=/usr/local \
     && make \
     && make install
 
 
-# ==== Final Stage ====
-# Start from a clean, minimal alpine image.
+# ==============================================================================
+# Stage 2: Final Runtime Image
+# ==============================================================================
 FROM alpine:3.20
 
-# 1. Install *only* the required runtime shared libraries + bash
+# Re-declare ARG for use in this stage
+ARG SAMTOOLS_VERSION="1.22.1"
+
+# Add metadata
+LABEL author="Boman Ng <boman.ngs@gmail.com>"
+
+# Install only the required runtime libraries
 RUN apk add --no-cache \
     bash \
     zlib \
@@ -42,8 +53,8 @@ RUN apk add --no-cache \
     ncurses-libs \
     libcurl
 
-# 2. Copy the compiled binary from the builder stage
+# Copy the compiled binary from the builder stage
 COPY --from=builder /usr/local/bin/samtools /usr/local/bin/samtools
 
-# 3. Define a working directory
+# Set working directory
 WORKDIR /data

@@ -1,7 +1,10 @@
+# ==============================================================================
+# Stage 1: Builder
 # Use a Debian-based builder to match the final image, ensuring library compatibility.
+# ==============================================================================
 FROM debian:bullseye AS builder
 
-# Use ARGs for versions to make the Dockerfile more flexible and maintainable
+# Define build arguments for versioning
 ARG STAR_VERSION=2.7.8a
 ARG ARRIBA_VERSION=2.5.1
 
@@ -12,7 +15,6 @@ LABEL stage="builder"
 WORKDIR /usr/local/src
 
 # Install build-time dependencies for both STAR and Arriba
-# Package names are compatible between Ubuntu and Debian for these dependencies.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential \
@@ -23,30 +25,26 @@ RUN apt-get update && \
         libdb-dev \
         libssl-dev \
         libxml2-dev && \
-    #
-    # --- Build STAR ---
-    #
+    # Build STAR
     wget https://github.com/alexdobin/STAR/archive/refs/tags/${STAR_VERSION}.tar.gz && \
     tar -xzf ${STAR_VERSION}.tar.gz && \
     cd STAR-${STAR_VERSION}/source && \
     make STAR && \
     cd ../.. && \
-    #
-    # --- Build Arriba ---
-    #
+    # Build Arriba
     wget https://github.com/suhrig/arriba/archive/refs/tags/v${ARRIBA_VERSION}.tar.gz && \
     tar -xzf v${ARRIBA_VERSION}.tar.gz && \
     cd arriba-${ARRIBA_VERSION} && \
     make && \
-    #
-    # --- Clean up build environment ---
-    #
+    # Clean up build environment
     apt-get purge -y --auto-remove build-essential wget && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /usr/local/src/*.tar.gz
 
-# --- Final Stage ---
+# ==============================================================================
+# Stage 2: Final Runtime Image
 # Use the corresponding slim version for a minimal final image.
+# ==============================================================================
 FROM debian:bullseye-slim
 
 # Re-declare ARGs needed in this stage
@@ -56,7 +54,7 @@ ARG ARRIBA_VERSION=2.5.1
 # Add metadata
 LABEL author="Boman Ng <boman.ngs@gmail.com>"
 
-# Install only the necessary RUNTIME dependencies
+# Install only the necessary runtime dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         samtools \

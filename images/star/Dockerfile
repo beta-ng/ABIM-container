@@ -1,12 +1,14 @@
-# --- Build Stage ---
-# FIX: Changed builder to debian:bullseye to match the final stage's OS.
+# ==============================================================================
+# Stage 1: Builder
+# Build STAR from source
+# ==============================================================================
 FROM debian:bullseye AS builder
 
+# Define build arguments for versioning
 ARG STAR_VERSION=2.7.11b
 
-RUN \
-    # Debian does not use sources.list.d/ubuntu.sources, directly edit sources.list
-    sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list && \
+# Switch to Aliyun mirror for faster package installation
+RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential \
@@ -22,17 +24,24 @@ RUN \
     # Clean up
     rm -rf /var/lib/apt/lists/* /star.tar.gz
 
-# --- Final Stage ---
-# Now this stage is compatible with the builder
+# ==============================================================================
+# Stage 2: Final Runtime Image
+# ==============================================================================
 FROM debian:bullseye-slim
 
+# Re-declare ARG for use in this stage
 ARG STAR_VERSION=2.7.11b
 
+# Add metadata
+LABEL author="Boman Ng <boman.ngs@gmail.com>"
+
+# Install runtime dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends libgomp1 && \
     rm -rf /var/lib/apt/lists/*
 
+# Copy the compiled STAR binary from the builder stage
 COPY --from=builder /STAR-${STAR_VERSION}/source/STAR /usr/local/bin/STAR
 
-ENTRYPOINT ["/usr/local/bin/STAR"]
-CMD ["--help"]
+# Set working directory
+WORKDIR /data

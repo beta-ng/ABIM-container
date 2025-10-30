@@ -1,51 +1,43 @@
-ARG FASTQC_VERSION="0.12.1"
-
 # ==============================================================================
-# Stage 1: Build Stage
+# Stage 1: Builder
+# Download and prepare FastQC
 # ==============================================================================
 FROM alpine:3.19 AS builder
 
-ARG FASTQC_VERSION
+# Define build arguments for versioning
+ARG FASTQC_VERSION="0.12.1"
 
+# Install build dependencies
 RUN apk add --no-cache curl unzip
 
+# Set working directory
 WORKDIR /app
 
+# Download and extract FastQC
 RUN curl -fSL "https://www.bioinformatics.babraham.ac.uk/projects/fastqc/fastqc_v${FASTQC_VERSION}.zip" -o "fastqc.zip" && \
     unzip "fastqc.zip" -d /opt/ && \
     rm "fastqc.zip"
 
 # ==============================================================================
-# Stage 2: Runtime Stage
+# Stage 2: Final Runtime Image
 # ==============================================================================
 FROM alpine:3.19
 
-ARG FASTQC_VERSION
+# Re-declare ARG for use in this stage
+ARG FASTQC_VERSION="0.12.1"
 
-LABEL maintainer="BomanNg boman.ngs@gmail.com" \
-      version="0.12.1" \
-      description="A secure, minimal, and production-ready Docker image for FastQC."
+# Add metadata
+LABEL author="Boman Ng <boman.ngs@gmail.com>"
 
+# Install runtime dependencies
 RUN apk add --no-cache openjdk11-jre-headless tini bash perl
 
-ARG USER_ID=1001
-ARG GROUP_ID=1001
-RUN addgroup -S -g ${GROUP_ID} fastqc && \
-    adduser -S -u ${USER_ID} -G fastqc -D fastqc
-
+# Copy FastQC from builder stage
 COPY --from=builder /opt/FastQC /opt/FastQC
 
+# Make FastQC executable and create symlink
 RUN chmod 755 /opt/FastQC/fastqc && \
-    ln -s /opt/FastQC/fastqc /usr/local/bin/fastqc && \
-    chown -R fastqc:fastqc /opt/FastQC
+    ln -s /opt/FastQC/fastqc /usr/local/bin/fastqc
 
-RUN mkdir -p /data && \
-    chown -R fastqc:fastqc /data
-
-USER fastqc
-
+# Set working directory
 WORKDIR /data
-
-ENTRYPOINT ["/sbin/tini", "--", "fastqc"]
-
-CMD ["--help"]

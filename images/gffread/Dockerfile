@@ -1,10 +1,16 @@
-ARG GFFREAD_VERSION=0.12.7
-
+# ==============================================================================
+# Stage 1: Builder
+# Clone and build gffread from source
+# ==============================================================================
 FROM ubuntu:22.04 AS builder
 
-ARG GFFREAD_VERSION
+# Define build arguments for versioning
+ARG GFFREAD_VERSION=0.12.7
+
+# Set environment
 ENV DEBIAN_FRONTEND=noninteractive
 
+# Set working directory
 WORKDIR /build
 
 # Install build dependencies
@@ -23,12 +29,16 @@ RUN git clone --branch v${GFFREAD_VERSION} https://github.com/gpertea/gffread.gi
     chmod +x gffread && \
     ls -la gffread
 
+# ==============================================================================
+# Stage 2: Final Runtime Image
+# ==============================================================================
 FROM alpine:3.19
 
-ARG GFFREAD_VERSION
-LABEL maintainer="Your Name <your.email@example.com>"
-LABEL description="GFFRead - GFF/GTF parsing and manipulation tool"
-LABEL version="${GFFREAD_VERSION}"
+# Re-declare ARG for use in this stage
+ARG GFFREAD_VERSION=0.12.7
+
+# Add metadata
+LABEL author="Boman Ng <boman.ngs@gmail.com>"
 
 # Install runtime dependencies
 RUN apk add --no-cache \
@@ -39,17 +49,8 @@ RUN apk add --no-cache \
         libc6-compat && \
     rm -rf /var/cache/apk/*
 
-# Create non-root user
-ARG USER_ID=1000
-ARG GROUP_ID=1000
-RUN addgroup -g ${GROUP_ID} gffread && \
-    adduser -u ${USER_ID} -G gffread -s /bin/bash -D gffread
-
 # Copy binary from builder stage
 COPY --from=builder --chmod=755 /build/gffread/gffread /usr/local/bin/gffread
-
-# Switch to non-root user
-USER gffread
 
 # Set working directory
 WORKDIR /data
