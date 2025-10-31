@@ -42,7 +42,9 @@ FROM alpine:3.20
 ARG SAMTOOLS_VERSION="1.22.1"
 
 # Add metadata
-LABEL author="Boman Ng <boman.ngs@gmail.com>"
+LABEL author="Boman Ng <boman.ngs@gmail.com>" \
+      version="${SAMTOOLS_VERSION}" \
+      description="Tools for manipulating SAM/BAM files"
 
 # Install only the required runtime libraries
 RUN apk add --no-cache \

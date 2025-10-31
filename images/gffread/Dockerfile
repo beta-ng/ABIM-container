@@ -38,7 +38,9 @@ FROM alpine:3.19
 ARG GFFREAD_VERSION=0.12.7
 
 # Add metadata
-LABEL author="Boman Ng <boman.ngs@gmail.com>"
+LABEL author="Boman Ng <boman.ngs@gmail.com>" \
+      version="${GFFREAD_VERSION}" \
+      description="GFF/GTF file processing utility"
 
 # Install runtime dependencies
 RUN apk add --no-cache \

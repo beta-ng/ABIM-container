@@ -40,7 +40,9 @@ FROM debian:bullseye-slim
 ARG BWA_VERSION=0.7.19
 
 # Add metadata
-LABEL author="Boman Ng <boman.ngs@gmail.com>"
+LABEL author="Boman Ng <boman.ngs@gmail.com>" \
+      version="${BWA_VERSION}" \
+      description="Burrows-Wheeler Aligner"
 
 # Install runtime dependencies
 RUN apt-get update && \

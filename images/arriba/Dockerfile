@@ -8,9 +8,6 @@ FROM debian:bullseye AS builder
 ARG STAR_VERSION=2.7.8a
 ARG ARRIBA_VERSION=2.5.1
 
-# Add metadata labels
-LABEL stage="builder"
-
 # Set a working directory
 WORKDIR /usr/local/src
 
@@ -52,7 +49,9 @@ ARG STAR_VERSION=2.7.8a
 ARG ARRIBA_VERSION=2.5.1
 
 # Add metadata
-LABEL author="Boman Ng <boman.ngs@gmail.com>"
+LABEL author="Boman Ng <boman.ngs@gmail.com>" \
+      version="${ARRIBA_VERSION}" \
+      description="Arriba fusion detection tool"
 
 # Install only the necessary runtime dependencies
 RUN apt-get update && \

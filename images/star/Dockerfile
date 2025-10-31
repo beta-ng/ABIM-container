@@ -33,7 +33,9 @@ FROM debian:bullseye-slim
 ARG STAR_VERSION=2.7.11b
 
 # Add metadata
-LABEL author="Boman Ng <boman.ngs@gmail.com>"
+LABEL author="Boman Ng <boman.ngs@gmail.com>" \
+      version="${STAR_VERSION}" \
+      description="Spliced Transcripts Alignment to a Reference"
 
 # Install runtime dependencies
 RUN apt-get update && \

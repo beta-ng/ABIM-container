@@ -7,7 +7,9 @@ FROM python:3.12-slim
 ARG PYTHON_VERSION=3.12
 
 # Add metadata
-LABEL author="Boman Ng <boman.ngs@gmail.com>"
+LABEL author="Boman Ng <boman.ngs@gmail.com>" \
+      version="${PYTHON_VERSION}" \
+      description="Python programming language with uv package manager"
 
 # Set the uv mirror URL to Tsinghua
 ENV UV_INDEX_URL="https://pypi.tuna.tsinghua.edu.cn/simple"

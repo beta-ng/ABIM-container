@@ -8,7 +8,9 @@ FROM bash:5.2-alpine3.20
 ARG BASH_VERSION=5.2
 
 # Add metadata
-LABEL author="Boman Ng <boman.ngs@gmail.com>"
+LABEL author="Boman Ng <boman.ngs@gmail.com>" \
+      version="${BASH_VERSION}" \
+      description="Bash shell"
 
 # Create a symlink to ensure scripts with a `#!/bin/bash` shebang run correctly.
 # This provides compatibility as many scripts expect bash at this standard path.

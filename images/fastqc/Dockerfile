@@ -27,7 +27,9 @@ FROM alpine:3.19
 ARG FASTQC_VERSION="0.12.1"
 
 # Add metadata
-LABEL author="Boman Ng <boman.ngs@gmail.com>"
+LABEL author="Boman Ng <boman.ngs@gmail.com>" \
+      version="${FASTQC_VERSION}" \
+      description="Quality control tool for high throughput sequence data"
 
 # Install runtime dependencies
 RUN apk add --no-cache openjdk11-jre-headless tini bash perl

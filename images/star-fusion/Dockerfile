@@ -8,9 +8,6 @@ FROM debian:bullseye AS builder
 ARG STAR_FUSION_VERSION=1.15.1
 ARG STAR_VERSION=2.7.8a
 
-# Add metadata
-LABEL stage="builder"
-
 # Set environment variables
 ENV STAR_FUSION_VERSION=${STAR_FUSION_VERSION}
 ENV STAR_VERSION=${STAR_VERSION}
@@ -75,7 +72,9 @@ ARG STAR_FUSION_VERSION=1.15.1
 ARG STAR_VERSION=2.7.8a
 
 # Add metadata
-LABEL author="Boman Ng <boman.ngs@gmail.com>"
+LABEL author="Boman Ng <boman.ngs@gmail.com>" \
+      version="${STAR_FUSION_VERSION}" \
+      description="Fusion detection tool using STAR"
 
 # Install only essential runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \

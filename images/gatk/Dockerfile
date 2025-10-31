@@ -22,7 +22,9 @@ FROM docker.io/library/debian:bullseye-slim
 ARG CONDA_ENV_PATH="/opt/gatk-env"
 
 # Add metadata
-LABEL author="Boman Ng <boman.ngs@gmail.com>"
+LABEL author="Boman Ng <boman.ngs@gmail.com>" \
+      version="${GATK_VERSION}" \
+      description="Genome Analysis Toolkit"
 
 # Set environment variables
 ENV PATH="${CONDA_ENV_PATH}/bin:${PATH}"

@@ -7,9 +7,6 @@ FROM ubuntu:24.04 AS downloader
 # Define build arguments for versioning
 ARG FASTP_VERSION=0.23.4
 
-# Add metadata
-LABEL stage="downloader"
-
 # Switch APT sources to a regional mirror for faster package installation
 RUN sed -i \
     -e 's|http://archive.ubuntu.com/ubuntu/|http://mirrors.aliyun.com/ubuntu/|g' \
@@ -34,7 +31,9 @@ FROM alpine:latest
 ARG FASTP_VERSION=0.23.4
 
 # Add metadata
-LABEL author="Boman Ng <boman.ngs@gmail.com>"
+LABEL author="Boman Ng <boman.ngs@gmail.com>" \
+      version="${FASTP_VERSION}" \
+      description="Fast all-in-one FASTQ preprocessor"
 
 # Switch APK sources to a regional mirror and install bash
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \

@@ -29,7 +29,9 @@ ARG JDK_VERSION=17
 ARG NEXTFLOW_VERSION=25.04.6
 
 # Add metadata
-LABEL author="Boman Ng <boman.ngs@gmail.com>"
+LABEL author="Boman Ng <boman.ngs@gmail.com>" \
+      version="${NEXTFLOW_VERSION}" \
+      description="Workflow orchestration tool"
 
 # Install runtime dependencies
 RUN apk add --no-cache bash && \
